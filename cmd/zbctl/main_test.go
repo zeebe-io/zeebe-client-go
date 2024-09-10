@@ -251,8 +251,7 @@ func TestZbctlWithInsecureGateway(t *testing.T) {
 	suite.Run(t,
 		&integrationTestSuite{
 			ContainerSuite: &containersuite.ContainerSuite{
-				WaitTime:       time.Second,
-				ContainerImage: "camunda/zeebe:current-test",
+				WaitTime: time.Second,
 				Env: map[string]string{
 					"ZEEBE_BROKER_GATEWAY_LONGPOLLING_ENABLED": "false",
 				},

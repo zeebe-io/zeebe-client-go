@@ -25,7 +25,6 @@ import (
 	"github.com/camunda/camunda/clients/go/v8/internal/utils"
 	"github.com/camunda/camunda/clients/go/v8/pkg/pb"
 	"github.com/camunda/camunda/clients/go/v8/pkg/zbc"
-	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
@@ -33,6 +32,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+const dockerImageName = "camunda/zeebe:8.6.0-alpha5"
 
 type zeebeWaitStrategy struct {
 	waitTime time.Duration
@@ -153,8 +154,6 @@ func isStable(res *pb.TopologyResponse) bool {
 type ContainerSuite struct {
 	// WaitTime specifies the wait period before checking if the container is up
 	WaitTime time.Duration
-	// ContainerImage is the ID of docker image to be used
-	ContainerImage string
 	// GatewayAddress is the contact point of the spawned Zeebe container specified in the format 'host:port'
 	GatewayAddress string
 	GatewayHost    string
@@ -199,7 +198,7 @@ func (s *ContainerSuite) SetupSuite() {
 	var err error
 	req := testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        s.ContainerImage,
+			Image:        dockerImageName,
 			ExposedPorts: []string{"26500/tcp", "9600/tcp"},
 			WaitingFor:   zeebeWaitStrategy{waitTime: s.WaitTime},
 			Env: map[string]string{
@@ -216,10 +215,6 @@ func (s *ContainerSuite) SetupSuite() {
 	}
 
 	ctx := context.Background()
-	err = validateImageExists(ctx, s.ContainerImage)
-	if err != nil {
-		s.T().Fatal(err)
-	}
 
 	s.container, err = testcontainers.GenericContainer(ctx, req)
 	if err != nil {
@@ -257,21 +252,4 @@ func (s *ContainerSuite) TearDownSuite() {
 	if err != nil {
 		s.T().Fatal(err)
 	}
-}
-
-func validateImageExists(ctx context.Context, image string) error {
-	dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		return fmt.Errorf("failed creating docker client: %w", err)
-	}
-
-	_, _, err = dockerClient.ImageInspectWithRaw(ctx, image)
-	if err != nil {
-		if client.IsErrNotFound(err) {
-			return fmt.Errorf("a Docker image containing Zeebe must be built and named '%s'", image)
-		}
-
-		return err
-	}
-	return nil
 }
